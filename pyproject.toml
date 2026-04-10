@@ -1,0 +1,15 @@
+[project]
+name = "cnn-layercam"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
+    "pillow>=12.2.0",
+    "torch>=2.11.0",
+    "torchcam>=0.4.1",
+    "torchvision>=0.26.0",
+]
