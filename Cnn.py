@@ -49,11 +49,11 @@ def predict(model, input_tensor, weights, top_k=5):
     return logits, predictions
 
 def generate_cam(model, input_tensor, class_idx):
-    cam_extractor = LayerCAM(model)
-    outputs = model(input_tensor)
-    
+    model.zero_grad()
 
-    activation_map = cam_extractor(class_idx, outputs)
+    with LayerCAM(model) as cam_extractor:
+        outputs = model(input_tensor)   
+        activation_map = cam_extractor(class_idx, outputs)
     return activation_map
 
 
@@ -64,8 +64,9 @@ def analyze_image(model, weights, image_path, top_k=5, class_rank=0):
     class_idx = predictions[class_rank]["class_index"]
     cam = generate_cam(model, input_tensor, class_idx)
 
-    if isinstance(cam, list):
-        cam = cam[0]
+    cam = cam[0]
+
+    cam = cam.squeeze(0)
 
     width, height = pil_image.size
 
@@ -82,15 +83,37 @@ def analyze_image(model, weights, image_path, top_k=5, class_rank=0):
     "pil_image": pil_image,
     "predictions": predictions,
     "class_idx": class_idx,
-    "cam_resized": cam_resized 
+    "cam_resized": cam_resized,
+    "logits": logits
     }
 
-def plot_cam(pil_image, cam_resized, class_name, predictions, class_rank=0):
-    plt.figure(figsize=(10,6))
-    plt.imshow(pil_image)
-    plt.imshow(cam_resized, cmap="jet", alpha=0.4)
-    class_name = predictions[class_rank]["class_name"]
-    confidence = predictions[class_rank]["confidence"]
-    plt.title(f"Prediction: {class_name} {confidence*100:.1f}%")
-    plt.axis("off")
+def analyze_class(model, weights, class_name, classes):
+    paths = classes[class_name]
+
+    pos_result = analyze_image(model, weights, paths["positive"])
+    neg_result = analyze_image(model, weights, paths["negative"])
+
+    return pos_result, neg_result
+
+def plot_class_results(pos_result, neg_result, class_name):
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    for i, (res, title) in enumerate([
+        (pos_result, "Positive"),
+        (neg_result, "Negative")
+    ]):
+        pil_image = res["pil_image"]
+        cam = res["cam_resized"]
+        pred = res["predictions"][0]
+
+        axes[i].imshow(pil_image)
+        axes[i].imshow(cam, cmap="jet", alpha=0.4)
+
+        axes[i].set_title(
+            f'{title}\nPred: {pred["class_name"]} ({pred["confidence"]*100:.1f}%)'
+        )
+        axes[i].axis("off")
+
+    plt.suptitle(f"Class: {class_name}")
+    plt.tight_layout()
     plt.show()
